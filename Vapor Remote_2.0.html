@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vapor Remote | 2-Series Controller</title>
+    <style>
+        :root {
+            --bg-body: #050608;
+            --bg-device: #12141a;
+            --bg-raised: #1c1e26;
+            --bg-inset: #0a0b0e;
+            --accent-amber: #ffaa00;
+            --accent-glow: rgba(255, 170, 0, 0.4);
+            --lcd-bg: #040506;
+            --lcd-text: #20c997;
+            --lcd-glow: rgba(32, 201, 151, 0.3);
+            --text-main: #f8f9fa;
+            --text-dim: #8b92a5;
+            --border-light: rgba(255, 255, 255, 0.08);
+            --border-dark: rgba(0, 0, 0, 0.6);
+            --shadow-drop: 0 10px 30px rgba(0,0,0,0.8);
+            --shadow-inner: inset 0 2px 15px rgba(0,0,0,0.9);
+        }
+
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg-body); color: var(--text-main); margin: 0;
+            display: flex; justify-content: center; align-items: flex-start; min-height: 100vh;
+            background-image: radial-gradient(circle at 50% 0%, #161821 0%, var(--bg-body) 70%);
+            padding-bottom: 40px;
+        }
+
+        .app-container { width: 100%; max-width: 440px; padding: 20px; display: flex; flex-direction: column; gap: 20px; position: relative; }
+
+        /* --- Header & App Icon --- */
+        .top-nav { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 15px; }
+        .brand { display: flex; align-items: center; gap: 14px; }
+        .app-icon {
+            width: 52px; height: 52px; border-radius: 14px;
+            background: linear-gradient(135deg, #2b2f3a 0%, #0d0f12 100%);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.15);
+            display: flex; justify-content: center; align-items: center; border: 1px solid #3a3f4c;
+        }
+        .app-icon svg { width: 28px; height: 28px; filter: drop-shadow(0 0 4px var(--accent-glow)); }
+        .brand h1 { margin: 0; font-size: 1.4rem; font-weight: 800; letter-spacing: 0.5px; color: #fff; line-height: 1.1; }
+        .brand span { font-size: 0.75rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; }
+        
+        .nav-buttons { display: flex; gap: 10px; }
+        .circle-btn {
+            background: var(--bg-raised); border: 1px solid var(--border-light);
+            color: var(--text-main); width: 38px; height: 38px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4); font-weight: 800; transition: 0.2s; font-size: 1.1rem;
+        }
+        .circle-btn:active { transform: scale(0.92); }
+
+        /* --- Realistic LCD Dashboard --- */
+        .lcd-bezel {
+            background: #0a0b0e; border: 1px solid #23262f; border-radius: 16px; padding: 6px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 1px 2px rgba(255,255,255,0.05);
+        }
+        .lcd-screen {
+            background: var(--lcd-bg); border-radius: 10px; padding: 20px;
+            box-shadow: var(--shadow-inner); display: flex; flex-direction: column; align-items: center;
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.2) 2px, rgba(0,0,0,0.2) 4px);
+        }
+        
+        .lcd-status-bar {
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            color: var(--lcd-text); font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; font-weight: 700;
+            text-shadow: 0 0 6px var(--lcd-glow);
+        }
+
+        .bt-indicator { display: flex; align-items: center; gap: 8px; }
+        .bt-icon {
+            display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+            background: #4a1515; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); transition: 0.3s;
+        }
+        .bt-icon.connected { background: var(--lcd-text); box-shadow: 0 0 10px var(--lcd-glow); }
+
+        .lcd-temp {
+            font-size: 4.5rem; font-weight: 800; font-family: 'Courier New', Courier, monospace;
+            color: var(--accent-amber); text-shadow: 0 0 18px var(--accent-glow); margin: 10px 0 5px;
+            text-align: center; line-height: 1; letter-spacing: -3px;
+        }
+
+        .lcd-mode { font-size: 0.9rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 4px; font-weight: 700; min-height: 1.2rem; }
+
+        /* --- Device Hardware Panel --- */
+        .hardware-panel {
+            background: var(--bg-device); border: 1px solid var(--border-light);
+            border-radius: 24px; padding: 25px; display: flex; flex-direction: column; gap: 35px;
+            box-shadow: var(--shadow-drop), inset 0 1px 1px rgba(255,255,255,0.08);
+            position: relative; overflow: hidden;
+        }
+
+        .control-section { display: flex; flex-direction: column; gap: 16px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; }
+        .section-label { font-size: 0.75rem; font-weight: 800; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; }
+
+        /* --- Tabs --- */
+        .tab-bar { display: flex; background: var(--bg-inset); border-radius: 12px; padding: 5px; box-shadow: var(--shadow-inner); border: 1px solid var(--border-light); }
+        .tab-btn {
+            flex: 1; background: transparent; border: none; color: var(--text-dim);
+            font-size: 0.75rem; font-weight: 800; padding: 12px 14px; border-radius: 8px; cursor: pointer; transition: 0.2s; letter-spacing: 1px;
+        }
+        .tab-btn.active { background: var(--bg-raised); color: var(--text-main); box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 1px solid var(--border-light); }
+        .unit-btn { background: var(--bg-raised); border: 1px solid var(--border-light); color: var(--text-main); padding: 4px 14px; font-size: 0.8rem; border-radius: 8px; cursor: pointer; font-weight: 800; box-shadow: 0 4px 8px rgba(0,0,0,0.4); }
+
+        /* --- Tactile Grid Buttons (Presets) --- */
+        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .tactile-btn {
+            background: linear-gradient(180deg, var(--bg-raised) 0%, var(--bg-device) 100%);
+            border: 1px solid var(--border-light); border-bottom: 2px solid #08090a; border-radius: 14px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 16px 0; cursor: pointer; transition: all 0.1s; box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        }
+        .tactile-btn:active { transform: translateY(2px); border-bottom-width: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+        .tactile-btn.active {
+            background: #1c1a16; border-color: var(--accent-amber); border-bottom-color: #8c5d00;
+            box-shadow: inset 0 0 25px rgba(255,170,0,0.08), 0 0 15px var(--accent-glow);
+        }
+        .btn-title { font-size: 0.85rem; font-weight: 800; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.5px; pointer-events: none;}
+        .btn-sub { font-size: 0.75rem; font-weight: 700; color: var(--accent-amber); margin-top: 6px; pointer-events: none;}
+        .tactile-btn.active .btn-title { color: var(--accent-amber); }
+        .tactile-btn.active .btn-sub { color: var(--text-main); }
+
+        /* --- Precision Thermostat --- */
+        .thermostat { display: flex; flex-direction: column; align-items: center; background: var(--bg-inset); padding: 30px 20px; border-radius: 16px; box-shadow: var(--shadow-inner); border: 1px solid var(--border-light); }
+        .thermostat-readout { font-size: 3.2rem; font-weight: 800; font-family: 'Courier New', Courier, monospace; color: var(--text-main); margin-bottom: 25px; letter-spacing: -1px; text-shadow: 0 0 15px rgba(255,255,255,0.2);}
+        .loading-text { font-size: 0.8rem; color: #ef233c; font-weight: 800; margin-top: 15px; text-transform: uppercase; letter-spacing: 1px;}
+
+        /* Custom Sliders */
+        input[type="range"] { width: 100%; -webkit-appearance: none; background: transparent; outline: none; height: 24px; margin: 10px 0;}
+        input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 8px; background: #07080a; border-radius: 4px; box-shadow: inset 0 1px 4px rgba(0,0,0,0.9); border: 1px solid #23262f; }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 28px; width: 28px; border-radius: 50%;
+            background: linear-gradient(180deg, #ffe066 0%, var(--accent-amber) 100%); margin-top: -11px; cursor: pointer; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.8), inset 0 2px 2px rgba(255,255,255,0.5), 0 0 15px var(--accent-glow); border: 1px solid #8c5d00;
+        }
+        .slider-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-dim); font-weight: 800; text-transform: uppercase; width: 100%;}
+
+        /* --- Touch Pills --- */
+        .pill-bar { display: flex; gap: 8px; background: var(--bg-inset); padding: 8px; border-radius: 14px; box-shadow: var(--shadow-inner); border: 1px solid var(--border-light); }
+        .pill {
+            flex: 1; text-align: center; padding: 14px 0; border-radius: 10px; cursor: pointer;
+            color: var(--text-dim); font-size: 0.8rem; font-weight: 800; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .pill.active { background: var(--bg-raised); color: var(--accent-amber); box-shadow: 0 4px 10px rgba(0,0,0,0.5); border: 1px solid var(--border-light);}
+
+        /* --- Main Action Button --- */
+        .power-btn {
+            width: 100%; padding: 22px; border-radius: 16px; border: none; font-size: 1.1rem; font-weight: 800;
+            background: linear-gradient(180deg, #ffcc33 0%, var(--accent-amber) 100%); color: #1a1100; cursor: pointer; letter-spacing: 1.5px; text-transform: uppercase;
+            box-shadow: 0 10px 30px var(--accent-glow), inset 0 2px 2px rgba(255,255,255,0.4); transition: 0.1s; border: 1px solid #cc8800;
+            display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px;
+        }
+        .power-btn:active { transform: translateY(4px); box-shadow: 0 4px 15px var(--accent-glow); }
+        .help-btn { background: transparent; border: 1px solid var(--border-light); color: var(--text-dim); padding: 15px; border-radius: 12px; width: 100%; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: 0.2s; }
+        .help-btn:hover { background: rgba(255,255,255,0.05); }
+
+        /* --- Overlay Modals --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            display: flex; justify-content: center; align-items: center; z-index: 100; padding: 20px; opacity: 0; pointer-events: none; transition: 0.3s;
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: all; }
+        .modal-card { background: var(--bg-device); border: 1px solid var(--border-light); border-radius: 24px; padding: 35px; width: 100%; max-width: 440px; box-shadow: var(--shadow-drop); position: relative; max-height: 90vh; overflow-y: auto;}
+        .modal-close { position: absolute; top: 20px; right: 25px; font-size: 1.8rem; color: var(--text-dim); cursor: pointer; font-weight: 800; }
+        .modal-title { margin: 0 0 20px; font-size: 1.6rem; color: var(--text-main); font-weight: 800; letter-spacing: 0.5px;}
+        .modal-text { font-size: 0.95rem; color: #a1a8bb; line-height: 1.6; margin-bottom: 20px; }
+        .modal-box { background: var(--bg-inset); padding: 15px; border-radius: 12px; border: 1px solid var(--border-light); margin-bottom: 20px; font-size: 0.9rem; color: var(--text-main); line-height: 1.5;}
+        
+        .disclaimer-box { border-left: 4px solid var(--accent-amber); background: rgba(255, 170, 0, 0.05); padding: 15px; border-radius: 0 12px 12px 0; font-size: 0.85rem; color: var(--text-dim); margin-top: 25px; line-height: 1.5;}
+        .patreon-link { display: inline-block; margin-top: 15px; color: var(--accent-amber); text-decoration: none; font-weight: 800; font-size: 0.95rem; transition: opacity 0.2s;}
+        .patreon-link:hover { opacity: 0.8; }
+
+        .sys-log { margin-top: 20px; font-family: monospace; font-size: 0.8rem; color: #5a5d6b; text-align: center; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;}
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <!-- Top Navigation -->
+    <div class="top-nav">
+        <div class="brand">
+            <div class="app-icon">
+                <!-- Abstract Geometric V Logo (Safe from trademark likeness) -->
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#FFB703"/><stop offset="100%" stop-color="#E85D04"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M 30 25 L 50 65 L 70 25 L 80 25 L 50 85 L 20 25 Z" fill="url(#glow)"/>
+                    <path d="M 40 25 L 50 45 L 60 25 Z" fill="#ffffff" opacity="0.6"/>
+                </svg>
+            </div>
+            <div>
+                <h1>VAPOR REMOTE</h1>
+                <span>For 2-Series Devices</span>
+            </div>
+        </div>
+        <div class="nav-buttons">
+            <div class="circle-btn" id="btnHelp">?</div>
+        </div>
+    </div>
+
+    <!-- LCD Bezel & Screen -->
+    <div class="lcd-bezel">
+        <div class="lcd-screen">
+            <div class="lcd-status-bar">
+                <div class="bt-indicator">
+                    <span class="bt-icon" id="btStatus"></span> <span id="fwDisplay">FW: ---</span>
+                </div>
+                <span id="battDisplay">BATT: ---%</span>
+            </div>
+            <div class="lcd-temp" id="lcdTemp">---°</div>
+            <div class="lcd-mode" id="lcdProfileName">OFFLINE</div>
+        </div>
+    </div>
+
+    <!-- Connect State -->
+    <div id="connectOverlay" style="margin-top: 15px;">
+        <button class="power-btn" id="connectBtn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"></polyline></svg>
+            CONNECT
+        </button>
+        <button class="help-btn" id="btnHelpOverlay">Connection Guide</button>
+        <div class="sys-log" id="log">Bluetooth standing by...</div>
+    </div>
+
+    <!-- Hardware Control Panel -->
+    <div class="hardware-panel hidden" id="mainControls">
+        
+        <!-- TEMPERATURE CONTROLS -->
+        <div class="control-section">
+            <div class="section-header">
+                <div class="tab-bar">
+                    <button class="tab-btn active" id="tabPresets">PRESETS</button>
+                    <button class="tab-btn" id="tabPrecision">PRO DIAL</button>
+                </div>
+                <button class="unit-btn" id="cfToggle">°F</button>
+            </div>
+            
+            <!-- Factory Presets -->
+            <div class="preset-grid" id="gridFactory">
+                <button class="tactile-btn temp-btn" data-val="0">
+                    <span class="btn-title">Low</span>
+                    <span class="btn-sub" data-c="171" data-f="340">340°F</span>
+                </button>
+                <button class="tactile-btn temp-btn" data-val="1">
+                    <span class="btn-title">Med Low</span>
+                    <span class="btn-sub" data-c="182" data-f="360">360°F</span>
+                </button>
+                <button class="tactile-btn temp-btn" data-val="2">
+                    <span class="btn-title">Medium</span>
+                    <span class="btn-sub" data-c="193" data-f="380">380°F</span>
+                </button>
+                <button class="tactile-btn temp-btn" data-val="3">
+                    <span class="btn-title">Med High</span>
+                    <span class="btn-sub" data-c="204" data-f="400">400°F</span>
+                </button>
+                <button class="tactile-btn temp-btn" data-val="4">
+                    <span class="btn-title">High</span>
+                    <span class="btn-sub" data-c="216" data-f="420">420°F</span>
+                </button>
+                <button class="tactile-btn temp-btn" data-val="5">
+                    <span class="btn-title">Concentrates</span>
+                    <span class="btn-sub" data-c="260" data-f="500">500°F</span>
+                </button>
+            </div>
+
+            <!-- Precision Thermostat -->
+            <div class="hidden thermostat" id="gridCustom">
+                <div class="thermostat-readout" id="customDialReadout">---°</div>
+                <input type="range" id="customTempSlider" min="0" max="0" value="0" disabled>
+                <div class="slider-labels">
+                    <span id="customMinLabel">--</span>
+                    <span id="customMaxLabel">--</span>
+                </div>
+                <div class="loading-text" id="customLoadingMsg">Extracting memory...</div>
+            </div>
+        </div>
+
+        <!-- COIL CALIBRATION -->
+        <div class="control-section">
+            <div class="section-header"><span class="section-label">Coil Calibration</span></div>
+            <div style="background: var(--bg-inset); padding: 20px; border-radius: 14px; box-shadow: var(--shadow-inner); border: 1px solid var(--border-light);">
+                <input type="range" id="calSlider" min="89" max="111" value="100">
+                <div class="slider-labels" style="margin-top: 15px;">
+                    <span>Smoother</span>
+                    <span style="color: var(--accent-amber); font-size: 0.8rem;" id="calDisplay">100%</span>
+                    <span>Richer</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOUCH SENSORS -->
+        <div class="control-section" style="margin-bottom: -5px;">
+            <div class="section-header"><span class="section-label">Touch Sensors</span></div>
+            <div class="pill-bar" id="touchPills">
+                <div class="pill touch-btn" data-val="0">Left</div>
+                <div class="pill touch-btn" data-val="1">Right</div>
+                <div class="pill touch-btn active" data-val="2">Both</div>
+                <div class="pill touch-btn" data-val="3">Either</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help / Documentation Modal -->
+<div class="modal-overlay" id="helpModal">
+    <div class="modal-card">
+        <div class="modal-close" id="closeHelp">&times;</div>
+        <h2 class="modal-title">Controller Guide</h2>
+        
+        <div class="modal-box">
+            <strong>1. Activation & Pairing</strong><br><br>
+            Ensure your vaporizer has sufficient charge and your device's Bluetooth is enabled. Place and hold your fingers on the device's touch sensor pads until the LED indicator blinks green, then release to enter pairing mode.<br><br>
+            Click the "CONNECT" button in this application and select your hardware. The LED will blink blue to confirm a successful link.
+        </div>
+
+        <div class="modal-box">
+            <strong>2. Thermal Control</strong><br><br>
+            Select a Standard Preset, or use the Pro Dial for 10°F precision adjustments. Upon selection, the hardware LED will blink green to confirm the new thermal target has been engaged.<br><br>
+            <span style="color:#ef233c;"><strong>CAUTION:</strong></span> Setting the temperature above 450°F (Concentrates mode) will cause combustion if used with dry botanical material. Adjust carefully.
+        </div>
+
+        <div class="disclaimer-box">
+            <strong>ABOUT THIS PROJECT</strong><br>
+            This application is a community-driven passion project. While the original manufacturer continues to innovate with excellent new devices, changes in legacy app availability left some users unable to access their older device's precision tuning features. <br><br>
+            To keep this great hardware running strong, this lightweight, open-source-style web controller was built. It runs entirely in your browser using Web Bluetooth. It is completely offline, privacy-first, and requires no servers.<br><br>
+            This software is offered completely free, as-is, as a gift to the community. If you found it useful and want to support my work and other projects, I would greatly appreciate it.<br>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+    const RX_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+    const TX_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+
+    let device, rxCharacteristic, txCharacteristic;
+    let heartbeatCounter = 0;
+    let authRequested = false;
+    let isFahrenheit = true;
+    let lastInteraction = { temp: 0, touch: 0, cal: 0 };
+    let authFallback;
+    let customSliderInitialized = false;
+    let proTabOpened = false;
+
+    let tempMap = {
+        0: { c: 171, f: 340, name: "Low" },
+        1: { c: 182, f: 360, name: "Med Low" },
+        2: { c: 193, f: 380, name: "Medium" },
+        3: { c: 204, f: 400, name: "Med High" },
+        4: { c: 216, f: 420, name: "High" },
+        5: { c: 260, f: 500, name: "Concentrates" }
+    };
+    
+    let customIds = [];
+    const battLevels = [10, 25, 50, 75, 100];
+
+    function log(msg) { document.getElementById('log').innerText = msg; }
+
+    function getTempString(id, justNumber = false) {
+        if (!tempMap[id]) return `---°`;
+        let val = isFahrenheit ? tempMap[id].f : tempMap[id].c;
+        let unit = isFahrenheit ? "°F" : "°C";
+        if (justNumber) return `${val}${unit}`;
+        return `${val}${unit} - ${tempMap[id].name}`;
+    }
+
+    function refreshUITemp() {
+        document.getElementById('cfToggle').innerText = isFahrenheit ? "°F" : "°C";
+        
+        document.querySelectorAll('.btn-sub').forEach(sub => {
+            let val = isFahrenheit ? sub.getAttribute('data-f') : sub.getAttribute('data-c');
+            let unit = isFahrenheit ? "°F" : "°C";
+            sub.innerText = val + unit;
+        });
+
+        if (customIds.length > 0) {
+            document.getElementById('customMinLabel').innerText = getTempString(customIds[0], true);
+            document.getElementById('customMaxLabel').innerText = getTempString(customIds[customIds.length - 1], true);
+            updateCustomReadout();
+        }
+
+        let activeFactoryBtn = document.querySelector('.temp-btn.active');
+        if (!document.getElementById('gridFactory').classList.contains('hidden') && activeFactoryBtn) {
+            document.getElementById('lcdTemp').innerText = getTempString(activeFactoryBtn.getAttribute('data-val'), true);
+        } else if (customIds.length > 0) {
+            let sliderVal = document.getElementById('customTempSlider').value;
+            document.getElementById('lcdTemp').innerText = getTempString(customIds[sliderVal], true);
+        }
+    }
+
+    // --- 100% STANDALONE EMBEDDED MD2 ENGINE ---
+    var md2Engine = (function() {
+        var S = [41,46,67,201,162,216,124,1,61,54,84,161,236,240,6,19,98,167,5,243,192,199,115,140,152,147,43,217,188,76,130,202,30,155,87,60,253,212,224,22,103,66,111,24,138,23,229,18,190,78,196,214,218,158,222,73,160,251,245,142,187,47,238,122,169,104,121,145,21,178,7,63,148,194,16,137,11,34,95,33,128,127,93,154,90,144,50,39,53,62,204,231,191,247,151,3,255,25,48,179,72,165,181,209,215,94,146,42,172,86,170,198,79,184,56,210,150,164,125,182,118,252,107,226,156,116,4,241,69,157,112,89,100,113,135,32,134,91,207,101,230,45,168,2,27,96,37,173,174,176,185,246,28,70,97,105,52,64,126,15,85,71,163,35,221,81,175,58,195,92,249,206,186,197,234,38,44,83,13,110,133,40,132,9,211,223,205,244,65,129,77,82,106,220,55,200,108,193,171,250,36,225,123,8,12,189,177,74,120,136,149,139,227,99,232,109,233,203,213,254,59,0,29,57,242,239,183,14,102,88,208,228,166,119,114,248,235,117,75,10,49,68,80,180,143,237,31,26,219,153,141,51,159,17,131,20];
+        return function(message) {
+            var msgLength = message.length;
+            var padLen = 16 - (msgLength % 16);
+            var padded = new Uint8Array(msgLength + padLen + 16);
+            for(var i=0; i<msgLength; i++) padded[i] = message[i];
+            for(var i=msgLength; i<msgLength+padLen; i++) padded[i] = padLen;
+            
+            var checksum = new Uint8Array(16);
+            var L = 0;
+            for(var i=0; i<msgLength+padLen; i+=16) {
+                for(var j=0; j<16; j++) {
+                    var c = padded[i+j];
+                    checksum[j] ^= S[c ^ L];
+                    L = checksum[j];
+                }
+            }
+            padded.set(checksum, msgLength+padLen);
+            
+            var X = new Uint8Array(48);
+            var hash = new Uint8Array(16);
+            for(var i=0; i<padded.length; i+=16) {
+                for(var j=0; j<16; j++) {
+                    X[16+j] = padded[i+j];
+                    X[32+j] = X[16+j] ^ X[j];
+                }
+                var t = 0;
+                for(var j=0; j<18; j++) {
+                    for(var k=0; k<48; k++) {
+                        X[k] ^= S[t];
+                        t = X[k]; 
+                    }
+                    t = (t + j) % 256;
+                }
+            }
+            for(var i=0; i<16; i++) hash[i] = X[i];
+            return hash;
+        };
+    })();
+
+    document.getElementById('connectBtn').addEventListener('click', async () => {
+        try {
+            log("SCANNING FOR AIRSPACE...");
+            device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }] });
+
+            device.addEventListener('gattserverdisconnected', () => {
+                document.getElementById('connectOverlay').classList.remove('hidden');
+                document.getElementById('mainControls').classList.add('hidden');
+                document.getElementById('btStatus').classList.remove('connected');
+                document.getElementById('lcdProfileName').innerText = "OFFLINE";
+                document.getElementById('lcdTemp').innerText = "---°";
+                log("UPLINK SEVERED.");
+                authRequested = false;
+                heartbeatCounter = 0;
+                customSliderInitialized = false;
+                proTabOpened = false;
+                clearTimeout(authFallback);
+            });
+
+            log("ESTABLISHING LINK...");
+            const server = await device.gatt.connect();
+            const service = await server.getPrimaryService(SERVICE_UUID);
+            rxCharacteristic = await service.getCharacteristic(RX_UUID);
+            txCharacteristic = await service.getCharacteristic(TX_UUID);
+
+            await txCharacteristic.startNotifications();
+            txCharacteristic.addEventListener('characteristicvaluechanged', handleIncomingData);
+
+            log("TAP DEVICE SENSORS TO WAKE RADIO...");
+            authRequested = false;
+            heartbeatCounter = 0;
+
+            authFallback = setTimeout(() => {
+                if (!authRequested) {
+                    authRequested = true;
+                    log("RADIO AWAKE. EXECUTING HANDSHAKE...");
+                    writeCommand(10, [0]);
+                }
+            }, 2500);
+
+        } catch (error) { log("ERROR: " + error.message); }
+    });
+
+    function rebuildCustomSlider() {
+        customIds = Object.keys(tempMap).filter(id => id > 5).sort((a,b) => tempMap[a].f - tempMap[b].f);
+        const slider = document.getElementById('customTempSlider');
+        
+        if (customIds.length > 0) {
+            slider.max = customIds.length - 1;
+            slider.disabled = false;
+            document.getElementById('customLoadingMsg').classList.add('hidden');
+            
+            document.getElementById('customMinLabel').innerText = getTempString(customIds[0], true);
+            document.getElementById('customMaxLabel').innerText = getTempString(customIds[customIds.length - 1], true);
+            
+            // Initialization is handled when Pro Dial tab is clicked to prevent aggressive jumping
+            updateCustomReadout();
+        }
+    }
+
+    function updateCustomReadout() {
+        const slider = document.getElementById('customTempSlider');
+        if (customIds.length > 0 && slider.value < customIds.length) {
+            let id = customIds[slider.value];
+            document.getElementById('customDialReadout').innerText = getTempString(id, true);
+        }
+    }
+
+    function handleIncomingData(event) {
+        let value = new Uint8Array(event.target.value.buffer);
+        let statusByte = value[0];
+
+        if (statusByte === 255) {
+            heartbeatCounter++;
+            if (heartbeatCounter >= 35 && !authRequested) {
+                authRequested = true;
+                clearTimeout(authFallback);
+                log("HANDSHAKE INITIATED...");
+                writeCommand(10, [0]); 
+            }
+        } 
+        else if (statusByte === 243) {
+            log("SOLVING CRYPTO HASH...");
+            clearTimeout(authFallback);
+            
+            const authPrefix = new Uint8Array([70, 105, 114, 101, 102, 108, 121, 32, 50, 32]);
+            const challenge = value.slice(1, 17);
+            
+            let combined = new Uint8Array(26);
+            combined.set(authPrefix, 0);
+            combined.set(challenge, 10);
+
+            try {
+                let hashArray = md2Engine(combined);
+                let authPayload = new Uint8Array(17);
+                authPayload[0] = 1;
+                authPayload.set(hashArray, 1);
+                
+                writeCommand(10, authPayload).then(() => {
+                    document.getElementById('connectOverlay').classList.add('hidden');
+                    document.getElementById('mainControls').classList.remove('hidden');
+                    document.getElementById('btStatus').classList.add('connected');
+                    log("UNLOCKED.");
+                    
+                    setTimeout(() => writeCommand(6, []), 300); // FW
+                    setTimeout(() => writeCommand(7, []), 600); // Memory
+                });
+            } catch (err) { log("CRYPTO ERROR: " + err.message); }
+        } 
+        else if (statusByte === 240) {
+            document.getElementById('fwDisplay').innerText = `FW: v${value[5]}.${value[6]}`;
+        }
+        else if (statusByte === 242) {
+            let hasNewCustom = false;
+            for (let i = 0; i < 4; i++) {
+                let offset = i * 4;
+                let id = value[offset + 1];
+                let b2 = value[offset + 2];
+                let b3 = value[offset + 3];
+                let b4 = value[offset + 4];
+                
+                if (b2 === 0 && b3 === 0 && b4 === 0) continue;
+                
+                let celsius = ((b2 & 255) << 6) + ((b3 & 255) >> 2);
+                let fahrenheit = (b4 & 255) + ((b3 & 3) << 8);
+                
+                if (fahrenheit > 0 && (!tempMap[id] || tempMap[id].f !== fahrenheit)) {
+                    tempMap[id] = { c: celsius, f: fahrenheit, name: "Pro Tuning" };
+                    hasNewCustom = true;
+                }
+            }
+            if (hasNewCustom) rebuildCustomSlider();
+        }
+        else if (statusByte === 241) {
+            let tempProfile = value[1];
+            let touchMethod = value[2];
+            let coilTuning = ((value[12] & 255) - 20) + 100;
+            document.getElementById('battDisplay').innerText = `BATT: ${battLevels[value[5]] || 0}%`;
+
+            let now = Date.now();
+
+            if (now - lastInteraction.temp > 1500) {
+                if (tempProfile <= 5) {
+                    switchTempTab('factory', false);
+                    document.querySelectorAll('.temp-btn').forEach(b => b.classList.remove('active'));
+                    let btn = document.querySelector(`.temp-btn[data-val="${tempProfile}"]`);
+                    if (btn) btn.classList.add('active');
+                    document.getElementById('lcdProfileName').innerText = tempMap[tempProfile].name;
+                } else {
+                    switchTempTab('custom', false);
+                    if (!tempMap[tempProfile]) tempMap[tempProfile] = { c: 0, f: 0, name: `Slot ${tempProfile}` };
+                    
+                    let idx = customIds.indexOf(tempProfile.toString());
+                    if (idx !== -1) {
+                        document.getElementById('customTempSlider').value = idx;
+                        updateCustomReadout();
+                    }
+                    document.getElementById('lcdProfileName').innerText = "PRO TUNING";
+                }
+                document.getElementById('lcdTemp').innerText = getTempString(tempProfile, true);
+            }
+            if (now - lastInteraction.cal > 1500) {
+                document.getElementById('calSlider').value = coilTuning;
+                document.getElementById('calDisplay').innerText = coilTuning + "%";
+            }
+            if (now - lastInteraction.touch > 1500) {
+                document.querySelectorAll('.touch-btn').forEach(p => p.classList.remove('active'));
+                const activePill = document.querySelector(`.touch-btn[data-val="${touchMethod}"]`);
+                if (activePill) activePill.classList.add('active');
+            }
+        }
+    }
+
+    async function writeCommand(commandId, payloadArray = []) {
+        if (!rxCharacteristic) return;
+        let cmd = new Uint8Array(2 + payloadArray.length);
+        cmd[0] = (commandId >> 8) & 0xFF;
+        cmd[1] = commandId & 0xFF;
+        if (payloadArray.length > 0) cmd.set(payloadArray, 2);
+        
+        try {
+            if (rxCharacteristic.properties.writeWithoutResponse) await rxCharacteristic.writeValueWithoutResponse(cmd);
+            else await rxCharacteristic.writeValue(cmd);
+        } catch (e) { log(`WRITE ERROR: ` + e.message); }
+    }
+
+    // --- Tab Switching & Synchronization Logic ---
+    function switchTempTab(tab, triggerHardwareUpdate = true) {
+        if (tab === 'factory') {
+            document.getElementById('tabPresets').classList.add('active');
+            document.getElementById('tabPrecision').classList.remove('active');
+            document.getElementById('gridFactory').classList.remove('hidden');
+            document.getElementById('gridCustom').classList.add('hidden');
+            
+            if (triggerHardwareUpdate) {
+                let activeBtn = document.querySelector('.temp-btn.active');
+                if (activeBtn) {
+                    let val = activeBtn.getAttribute('data-val');
+                    writeCommand(2, [parseInt(val)]);
+                    document.getElementById('lcdTemp').innerText = getTempString(val, true);
+                    document.getElementById('lcdProfileName').innerText = tempMap[val].name;
+                }
+            }
+        } else {
+            document.getElementById('tabPrecision').classList.add('active');
+            document.getElementById('tabPresets').classList.remove('active');
+            document.getElementById('gridCustom').classList.remove('hidden');
+            document.getElementById('gridFactory').classList.add('hidden');
+            
+            if (triggerHardwareUpdate) {
+                // If it's the very first time opening the Pro tab, force the default 400F position
+                if (!proTabOpened && customIds.length > 0) {
+                    let closestIdx = 0; let minDiff = 999;
+                    for (let i = 0; i < customIds.length; i++) {
+                        let diff = Math.abs(tempMap[customIds[i]].f - 400);
+                        if (diff < minDiff) { minDiff = diff; closestIdx = i; }
+                    }
+                    document.getElementById('customTempSlider').value = closestIdx;
+                    proTabOpened = true;
+                }
+
+                let slider = document.getElementById('customTempSlider');
+                if (customIds.length > 0 && !slider.disabled) {
+                    let id = customIds[slider.value];
+                    writeCommand(2, [parseInt(id)]);
+                    updateCustomReadout();
+                    document.getElementById('lcdTemp').innerText = getTempString(id, true);
+                    document.getElementById('lcdProfileName').innerText = "PRO TUNING";
+                }
+            }
+        }
+    }
+
+    document.getElementById('tabPresets').addEventListener('click', () => { lastInteraction.temp = Date.now(); switchTempTab('factory', true); });
+    document.getElementById('tabPrecision').addEventListener('click', () => { lastInteraction.temp = Date.now(); switchTempTab('custom', true); });
+
+    // --- UI Event Listeners ---
+    document.getElementById('cfToggle').addEventListener('click', () => {
+        isFahrenheit = !isFahrenheit;
+        refreshUITemp();
+    });
+
+    document.querySelectorAll('.temp-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            lastInteraction.temp = Date.now();
+            let val = e.currentTarget.getAttribute('data-val');
+            writeCommand(2, [parseInt(val)]);
+            
+            document.querySelectorAll('.temp-btn').forEach(b => b.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            
+            document.getElementById('lcdTemp').innerText = getTempString(val, true);
+            document.getElementById('lcdProfileName').innerText = tempMap[val].name;
+        });
+    });
+
+    const customSlider = document.getElementById('customTempSlider');
+    customSlider.addEventListener('input', () => {
+        lastInteraction.temp = Date.now();
+        updateCustomReadout();
+    });
+    customSlider.addEventListener('change', (e) => {
+        lastInteraction.temp = Date.now();
+        if (customIds.length > 0) {
+            let id = customIds[e.target.value];
+            writeCommand(2, [parseInt(id)]);
+            document.getElementById('lcdTemp').innerText = getTempString(id, true);
+            document.getElementById('lcdProfileName').innerText = "PRO TUNING";
+        }
+    });
+
+    const calS = document.getElementById('calSlider');
+    calS.addEventListener('input', (e) => {
+        lastInteraction.cal = Date.now();
+        document.getElementById('calDisplay').innerText = e.target.value + "%";
+    });
+    calS.addEventListener('change', (e) => {
+        lastInteraction.cal = Date.now();
+        writeCommand(15, [3, parseInt(e.target.value) - 80]);
+    });
+
+    document.querySelectorAll('.touch-btn').forEach(pill => {
+        pill.addEventListener('click', (e) => {
+            lastInteraction.touch = Date.now();
+            let val = parseInt(e.currentTarget.getAttribute('data-val'));
+            writeCommand(3, [val]);
+            document.querySelectorAll('.touch-btn').forEach(p => p.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+        });
+    });
+
+    // --- Help Modal Logic ---
+    document.getElementById('btnHelp').addEventListener('click', () => document.getElementById('helpModal').classList.add('open'));
+    document.getElementById('btnHelpOverlay').addEventListener('click', () => document.getElementById('helpModal').classList.add('open'));
+    document.getElementById('closeHelp').addEventListener('click', () => document.getElementById('helpModal').classList.remove('open'));
+    document.getElementById('helpModal').addEventListener('click', (e) => { if(e.target === document.getElementById('helpModal')) document.getElementById('helpModal').classList.remove('open'); });
+</script>
+</body>
+</html>
