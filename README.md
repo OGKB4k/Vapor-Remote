@@ -12,7 +12,7 @@ To keep this great hardware running strong, this lightweight web controller was 
 This software is offered completely free, as-is, as a gift to the community. If you found it useful and want to support my work and other projects, I would greatly appreciate it.
 
 Q: How do I run it? 
-A: Open this link in your browser: https://ogkb4k.github.io/Vapor-Remote/ OR save the index.html file and open it locally offline, with or without internet 
+A: Open this link in your browser: https://ogkb4k.github.io/Vapor-Remote/ OR save the index.html file and open it locally offline, with or without internet. Web Bluetooth is generally only supported on Chrome, Edge, and Opera (Safari and Firefox block it by default) 
 
 
 Q: How can I say thanks?
